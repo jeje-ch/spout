@@ -38,6 +38,10 @@ class WorksheetManager implements WorksheetManagerInterface
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
 EOD;
 
+    protected $mergeCells = [];
+
+    protected $reservedCells = [];
+
     /** @var bool Whether inline or shared strings should be used */
     protected $shouldUseInlineStrings;
 
@@ -142,14 +146,33 @@ EOD;
         $worksheet->setLastWrittenRowIndex($worksheet->getLastWrittenRowIndex() + 1);
     }
 
+
+
     /**
-     * Adds non empty row to the worksheet.
-     *
-     * @param Worksheet $worksheet The worksheet to add the row to
-     * @param Row $row The row to be written
-     * @throws IOException If the data cannot be written
-     * @throws InvalidArgumentException If a cell value's type is not supported
-     * @return void
+     * @param int $rowIndexOneBased
+     * @param int $columnIndexZeroBased
+     * @return WorksheetManager
+     */
+    public function addReservedCell(int $rowIndexOneBased, int $columnIndexZeroBased)
+    {
+        if(!array_key_exists($rowIndexOneBased, $this->reservedCells)){
+            $this->reservedCells[$rowIndexOneBased] = [];
+        }
+
+        $this->reservedCells[$rowIndexOneBased][$columnIndexZeroBased] = true;
+        return $this;
+    }
+
+    public function howManyReservedCellsBeforeMe(int $rowIndexOneBased, int $columnIndexZeroBased)
+    {
+        return 0;
+    }
+
+    /**
+     * @param Worksheet $worksheet
+     * @param Row $row
+     * @throws IOException
+     * @throws InvalidArgumentException
      */
     private function addNonEmptyRow(Worksheet $worksheet, Row $row)
     {
@@ -159,8 +182,14 @@ EOD;
 
         $rowXML = '<row r="' . $rowIndexOneBased . '" spans="1:' . $numCells . '">';
 
-        foreach ($row->getCells() as $columnIndexZeroBased => $cell) {
+        $columnIndexZeroBased = 0;
+        foreach ($row->getCells() as $cell) {
             $rowXML .= $this->applyStyleAndGetCellXML($cell, $rowStyle, $rowIndexOneBased, $columnIndexZeroBased);
+
+            $this->handleMergeCells($cell, $columnIndexZeroBased, $rowIndexOneBased);
+            /** @var \Box\Spout\Writer\XLSX\Entity\Style\Style $cellStyle */
+            $cellStyle = $cell->getStyle();
+            $columnIndexZeroBased += $cellStyle->getColSpan();
         }
 
         $rowXML .= '</row>';
@@ -169,6 +198,42 @@ EOD;
         if ($wasWriteSuccessful === false) {
             throw new IOException("Unable to write data in {$worksheet->getFilePath()}");
         }
+    }
+
+    /**
+     * @param Cell $cell
+     * @param int $columnIndexZeroBased
+     * @param int $rowIndexOneBased
+     */
+    protected function handleMergeCells(Cell $cell, int $columnIndexZeroBased, int $rowIndexOneBased)
+    {
+        /** @var \Box\Spout\Writer\XLSX\Entity\Style\Style $cellStyle */
+        $cellStyle = $cell->getStyle();
+
+        $rowSpan = $cellStyle->getRowSpan();
+        $colSpan = $cellStyle->getColSpan();
+
+        if($rowSpan === 1 && $colSpan === 1){ // no span !
+            return;
+        }
+
+        #region mergeCells data
+        $columnLetters = CellHelper::getColumnLettersFromColumnIndex($columnIndexZeroBased);
+        $startCell = $columnLetters.$rowIndexOneBased;
+
+        $columnLetters = CellHelper::getColumnLettersFromColumnIndex($columnIndexZeroBased + $cellStyle->getColSpan() - 1);
+        $endCell = $columnLetters.($rowIndexOneBased + $cellStyle->getRowSpan() - 1);
+
+        $this->mergeCells[] = $startCell.':'.$endCell;
+        #endregion mergeCells data
+
+        #region reservedCells data
+        for($i=0; $i<$rowSpan; $i++){
+            for($j=0; $j<$colSpan; $j++){
+                $this->addReservedCell($rowIndexOneBased+$i, $columnIndexZeroBased+$j);
+            }
+        }
+        #endregion reservedCells data
     }
 
     /**
@@ -271,7 +336,31 @@ EOD;
         }
 
         \fwrite($worksheetFilePointer, '</sheetData>');
+
+        $mergeCellsXML = $this->getMergeCellsXML();
+        \fwrite($worksheetFilePointer, $mergeCellsXML);
+
         \fwrite($worksheetFilePointer, '</worksheet>');
         \fclose($worksheetFilePointer);
+    }
+
+    /**
+     * @return string
+     */
+    protected function getMergeCellsXML()
+    {
+        if(empty($this->mergeCells)){
+            return '';
+        }
+
+        $xml = '<mergeCells count="'.count($this->mergeCells).'">';
+
+        foreach($this->mergeCells as $mergeCell){
+            $xml .= '<mergeCell ref="'.$mergeCell.'"/>';
+        }
+
+        $xml .= '</mergeCells>';
+
+        return $xml;
     }
 }
