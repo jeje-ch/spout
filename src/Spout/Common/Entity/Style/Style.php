@@ -84,6 +84,17 @@ class Style
     /** @var bool */
     private $hasSetFormat = false;
 
+
+    /**
+     * @var int
+     */
+    protected $rowSpan = 1;
+
+    /**
+     * @var int
+     */
+    protected $colSpan = 1;
+
     /**
      * @return int|null
      */
@@ -462,5 +473,41 @@ class Style
     public function shouldApplyFormat()
     {
         return $this->hasSetFormat;
+    }
+
+    /**
+     * @param int $rowSpan
+     * @return Style
+     */
+    public function setRowSpan(int $rowSpan)
+    {
+        $this->rowSpan = $rowSpan;
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getRowSpan()
+    {
+        return $this->rowSpan;
+    }
+
+    /**
+     * @param int $colSpan
+     * @return Style
+     */
+    public function setColSpan(int $colSpan)
+    {
+        $this->colSpan = $colSpan;
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getColSpan()
+    {
+        return $this->colSpan;
     }
 }

@@ -104,7 +104,7 @@ class Cell
      */
     public function setStyle($style)
     {
-        $this->style = $style ?: new \Box\Spout\Writer\XLSX\Entity\Style\Style();
+        $this->style = $style ?: new Style();
     }
 
     /**

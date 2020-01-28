@@ -187,7 +187,7 @@ EOD;
             $rowXML .= $this->applyStyleAndGetCellXML($cell, $rowStyle, $rowIndexOneBased, $columnIndexZeroBased);
 
             $this->handleMergeCells($cell, $columnIndexZeroBased, $rowIndexOneBased);
-            /** @var \Box\Spout\Writer\XLSX\Entity\Style\Style $cellStyle */
+            /** @var Style $cellStyle */
             $cellStyle = $cell->getStyle();
             $columnIndexZeroBased += $cellStyle->getColSpan();
         }
@@ -207,7 +207,7 @@ EOD;
      */
     protected function handleMergeCells(Cell $cell, int $columnIndexZeroBased, int $rowIndexOneBased)
     {
-        /** @var \Box\Spout\Writer\XLSX\Entity\Style\Style $cellStyle */
+        /** @var Style $cellStyle */
         $cellStyle = $cell->getStyle();
 
         $rowSpan = $cellStyle->getRowSpan();
