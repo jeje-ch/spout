@@ -282,7 +282,18 @@ EOD;
         } elseif ($cell->isBoolean()) {
             $cellXML .= ' t="b"><v>' . (int) ($cell->getValue()) . '</v></c>';
         } elseif ($cell->isNumeric()) {
-            $cellXML .= '><v>' . $cell->getValue() . '</v></c>';
+            $cellXML .= '><v>' . sprintf(\is_float($cell->getValue()) ? '%F' : '%d', $cell->getValue()) . '</v></c>';
+        } elseif ($cell->isDate()){
+            $value = $cell->getValue();
+            $refDate = \DateTime::createFromFormat('d/m/Y H:i:s', '30/12/1899 00:00:00');
+
+            if($cell->getStyle()->getFormat() === 'dd/mm/YYYY'){
+                /** @var \DateInterval $dt */
+                $dt = $value->diff($refDate);
+                $value = $dt->days;
+            }
+
+            $cellXML .= '><v>' . $value .'</v></c>';
         } elseif ($cell->isError() && is_string($cell->getValueEvenIfError())) {
             // only writes the error value if it's a string
             $cellXML .= ' t="e"><v>' . $cell->getValueEvenIfError() . '</v></c>';
